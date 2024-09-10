@@ -1,3 +1,4 @@
+import { Button } from "@mui/material";
 import Head from "next/head";
 
 export default function Home() {
@@ -19,6 +20,22 @@ export default function Home() {
 				/>
 			</Head>
 			<h1>Hello Robix</h1>
+
+			<Button
+				variant="text"
+				color="primary">
+				Text
+			</Button>
+			<Button
+				variant="contained"
+				color="primary">
+				Contained
+			</Button>
+			<Button
+				variant="outlined"
+				color="primary">
+				Outlined
+			</Button>
 		</>
 	);
 }
