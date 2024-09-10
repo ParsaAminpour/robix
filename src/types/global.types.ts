@@ -1,3 +1,3 @@
 import { PropsWithChildren } from "react";
 
-export interface BaseProps<T = object> extends React.FC<PropsWithChildren<T>> {}
+export interface BaseProps<T = unknown> extends React.FC<PropsWithChildren<T>> {}
