@@ -1,5 +1,8 @@
+import ConnectionProvider from "@/providers/connection.provider";
 import ThemeProvider from "@/providers/theme.provider";
+import WalletProvider from "@/providers/wallet.provider";
 import "@/styles/globals.css";
+import { WalletDialogProvider } from "@solana/wallet-adapter-material-ui";
 import { NextPage } from "next";
 import type { AppProps } from "next/app";
 import { ReactElement, ReactNode } from "react";
@@ -21,7 +24,13 @@ export default function App(props: AppPropsWithLayout) {
 
 	return (
 		<>
-			<ThemeProvider>{getLayout(<Component {...pageProps} />)}</ThemeProvider>
+			<ConnectionProvider>
+				<WalletProvider>
+					<WalletDialogProvider>
+						<ThemeProvider>{getLayout(<Component {...pageProps} />)}</ThemeProvider>
+					</WalletDialogProvider>
+				</WalletProvider>
+			</ConnectionProvider>
 		</>
 	);
 }
