@@ -13,7 +13,6 @@ const ShowBalance = () => {
 			connection
 				.getBalance(publicKey)
 				.then((res) => {
-					console.log(res);
 					setBalance(res / LAMPORTS_PER_SOL);
 				})
 				.catch((err) => console.log(err));
