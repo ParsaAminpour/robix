@@ -1,17 +1,11 @@
 import { BaseProps } from "@/types/global.types";
+import { BackpackWalletAdapter } from "@solana/wallet-adapter-backpack"; // Import Backpack
 import { WalletProvider as SolanaWalletProvider } from "@solana/wallet-adapter-react";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
-
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 const WalletProvider: BaseProps = ({ children, ...props }) => {
-	const wallets = useMemo(
-		() => [
-			new PhantomWalletAdapter(),
-			//  new SolflareWalletAdapter({ network: WalletAdapterNetwork.Mainnet })
-		],
-		[],
-	);
+	const wallets = useMemo(() => [new PhantomWalletAdapter(), new BackpackWalletAdapter()], []);
 	return (
 		<SolanaWalletProvider
 			wallets={wallets}
@@ -21,4 +15,4 @@ const WalletProvider: BaseProps = ({ children, ...props }) => {
 		</SolanaWalletProvider>
 	);
 };
-export default WalletProvider;
+export default memo(WalletProvider);

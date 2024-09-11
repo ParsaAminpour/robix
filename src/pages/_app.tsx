@@ -1,11 +1,12 @@
 import ConnectionProvider from "@/providers/connection.provider";
 import ThemeProvider from "@/providers/theme.provider";
 import WalletProvider from "@/providers/wallet.provider";
+import store from "@/store/store";
 import "@/styles/globals.css";
-import { WalletDialogProvider } from "@solana/wallet-adapter-material-ui";
 import { NextPage } from "next";
 import type { AppProps } from "next/app";
 import { ReactElement, ReactNode } from "react";
+import { Provider } from "react-redux";
 
 // Extend the NextPage type to include a layout property
 type NextPageWithLayout = NextPage & {
@@ -26,9 +27,9 @@ export default function App(props: AppPropsWithLayout) {
 		<>
 			<ConnectionProvider>
 				<WalletProvider>
-					<WalletDialogProvider>
+					<Provider store={store}>
 						<ThemeProvider>{getLayout(<Component {...pageProps} />)}</ThemeProvider>
-					</WalletDialogProvider>
+					</Provider>
 				</WalletProvider>
 			</ConnectionProvider>
 		</>
