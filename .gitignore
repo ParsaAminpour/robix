@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# anchor
+/robix/.anchor
+/robix/target
+/robix/node_modules
+
