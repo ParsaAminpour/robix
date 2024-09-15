@@ -1,8 +1,8 @@
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Row, Typography } from "antd";
+import { Flex, Typography } from "antd";
 import { memo, useEffect, useState } from "react";
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const ShowBalance = () => {
 	const { publicKey } = useWallet();
@@ -28,12 +28,10 @@ const ShowBalance = () => {
 	}, [publicKey, connection]);
 
 	return (
-		<Row
-			align={"middle"}
-			gutter={2}>
-			<Title>Balance: </Title>
-			<Title>{balance}</Title>
-		</Row>
+		<Flex>
+			<Title level={2}>Balance: </Title>
+			<Text>{balance}</Text>
+		</Flex>
 	);
 };
 

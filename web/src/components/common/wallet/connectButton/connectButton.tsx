@@ -1,9 +1,9 @@
 import { triggerModal } from "@/store/slices/modal/modal.slice";
 import { useDispatch } from "@/store/store";
-
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Button } from "antd";
+import { Button, Typography } from "antd";
 import Image from "next/image";
+const { Text } = Typography;
 
 const ConnectButton = () => {
 	const { connected, wallet } = useWallet();
@@ -28,9 +28,8 @@ const ConnectButton = () => {
 			) : (
 				<Button
 					onClick={() => dispatch(triggerModal({ modal: "wallet", trigger: true }))}
-					type="primary"
-					color="primary">
-					Connect Wallet
+					type="primary">
+					<Text>Connect & play</Text>
 				</Button>
 			)}
 		</>

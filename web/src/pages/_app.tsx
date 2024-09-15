@@ -1,3 +1,4 @@
+import MainLayout from "@/components/layout/main.layout";
 import ConnectionProvider from "@/providers/connection.provider";
 import WalletProvider from "@/providers/wallet.provider";
 import store from "@/store/store";
@@ -20,10 +21,8 @@ type AppPropsWithLayout = AppProps & {
 };
 
 export default function App(props: AppPropsWithLayout) {
-	// const ConfigProvider = dynamic(() => import("antd").then((res) => res.ConfigProvider), { ssr: false });
-
 	const { pageProps, Component } = props;
-	const defaultLayout = (page: ReactElement): ReactNode => <div>{page}</div>;
+	const defaultLayout = (page: ReactElement): ReactNode => <MainLayout>{page}</MainLayout>;
 	const getLayout = Component.layout ?? defaultLayout;
 
 	return (
