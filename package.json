@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "workspaces": [
+    "web",
+    "robix"
+  ],
+  "devDependencies": {
+    "husky": "^8.0.0"
+  }
+}

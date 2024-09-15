@@ -1,5 +1,6 @@
 {
-  "license": "ISC",  
+  "name": "robix",
+  "license": "ISC",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
