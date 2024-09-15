@@ -1,5 +1,5 @@
 {
-	"name": "robix",
+	"name": "web",
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
@@ -8,7 +8,7 @@
 		"start": "next start",
 		"format": "prettier . --write",
 		"lint": "next lint",
-		"prepare": "husky"
+		"prepare": "husky && husky install"
 	},
 	"dependencies": {
 		"@ant-design/cssinjs": "^1.21.1",
@@ -33,7 +33,7 @@
 		"@types/react-dom": "^18",
 		"eslint": "^8",
 		"eslint-config-next": "14.2.9",
-		"husky": "^9.1.5",
+		"husky": "^8.0.0",
 		"lint-staged": "^15.2.10",
 		"prettier": "3.3.3",
 		"typescript": "^5"

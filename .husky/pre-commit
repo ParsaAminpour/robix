@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Change directory to /web and run the command
+cd web/
+bunx lint-staged
