@@ -1,11 +1,11 @@
-import { LoadingButton } from "@mui/lab";
-import { Box, Divider, Modal, Stack, Typography } from "@mui/material";
 import { WalletName } from "@solana/wallet-adapter-base";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { Button, Divider, Modal, Row, Typography } from "antd";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import { IWalletModalProps } from "./walletModal.types";
+const Title = Typography.Title;
 
 const WalletModal = (props: IWalletModalProps) => {
 	const { onClose, open } = props;
@@ -45,86 +45,79 @@ const WalletModal = (props: IWalletModalProps) => {
 			onClose={onClose}
 			aria-labelledby="modal-modal-title"
 			aria-describedby="modal-modal-description">
-			<Box
-				sx={{
+			<div
+				style={{
 					position: "absolute",
 					top: "50%",
 					left: "50%",
 					transform: "translate(-50%, -50%)",
 					width: 400,
-					bgcolor: "background.paper",
 					border: "2px solid #000",
-					boxShadow: 24,
-					p: 4,
+					padding: 4,
 				}}>
-				<Stack
-					gap={"10px"}
-					width={"100%"}
-					alignItems={"start"}>
+				<Row
+					gutter={2}
+					align={"top"}>
 					{availableWallets.map((wallet) => {
 						if (wallet.readyState !== "NotDetected") {
 							return (
-								<LoadingButton
+								<Button
 									loading={wallet.adapter.connecting}
-									loadingPosition="start"
 									disabled={connecting}
-									startIcon={<></>}
-									variant="contained"
-									fullWidth
+									icon={<></>}
+									iconPosition="start"
+									type="primary"
 									color="primary"
 									key={wallet.adapter.name}
 									onClick={() => handleSelectWallet(wallet.adapter.name)}>
-									<Stack
-										direction={"row"}
-										width={"100%"}
-										justifyContent={"space-between"}
-										alignItems={"center"}>
-										<Typography>{wallet.adapter.name}</Typography>
+									<Row
+										content={"space-between"}
+										align={"middle"}>
+										<Title>{wallet.adapter.name}</Title>
 										<Image
 											src={wallet.adapter.icon}
 											alt={wallet.adapter.name}
 											width={25}
 											height={25}
 										/>
-									</Stack>
-								</LoadingButton>
+									</Row>
+								</Button>
 							);
 						} else {
 							return <></>;
 						}
 					})}
 					{notDetectedWallets.length ? (
-						<Box>
-							<Typography>Not Installed</Typography>
-							<Divider />
+						<div>
+							<Title>Not Installed</Title>
+							<Divider orientation="center" />
 							{notDetectedWallets.map((wallet) => {
 								return (
-									<Stack key={wallet.adapter.name}>
+									<Row key={wallet.adapter.name}>
 										<Link
 											key={wallet.adapter.name}
 											href={wallet.adapter.url}>
-											<Stack
-												direction={"row"}
-												alignItems={"center"}
-												justifyContent={"space-between"}>
-												<Typography>{wallet.adapter.name}</Typography>
+											<Row
+												align={"middle"}
+												content={"space-between"}>
+												<Title>{wallet.adapter.name}</Title>
 												<Image
 													src={wallet.adapter.icon}
 													alt={wallet.adapter.name}
 													width={24}
 													height={24}
 												/>
-											</Stack>
+											</Row>
 										</Link>
-									</Stack>
+									</Row>
 								);
 							})}
-						</Box>
+						</div>
 					) : (
 						<></>
 					)}
-				</Stack>
-			</Box>
+				</Row>
+			</div>
 		</Modal>
 	);
 };

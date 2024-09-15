@@ -1,11 +1,11 @@
-import { Button } from "@mui/material";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { Button } from "antd";
 
 const DisconnectButton = () => {
 	const { disconnect } = useWallet();
 	return (
 		<Button
-			variant="outlined"
+			type="default"
 			color="error"
 			onClick={disconnect}>
 			disconnect

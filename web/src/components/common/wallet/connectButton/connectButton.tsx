@@ -1,7 +1,8 @@
 import { triggerModal } from "@/store/slices/modal/modal.slice";
 import { useDispatch } from "@/store/store";
-import { Button } from "@mui/material";
+
 import { useWallet } from "@solana/wallet-adapter-react";
+import { Button } from "antd";
 import Image from "next/image";
 
 const ConnectButton = () => {
@@ -11,8 +12,8 @@ const ConnectButton = () => {
 		<>
 			{connected && wallet ? (
 				<Button
-					variant="contained"
-					startIcon={
+					type="primary"
+					icon={
 						<Image
 							src={wallet.adapter.icon}
 							alt="wallet"
@@ -20,13 +21,14 @@ const ConnectButton = () => {
 							height={24}
 						/>
 					}
+					iconPosition="start"
 					color="primary">
 					{wallet.adapter.publicKey?.toString()}
 				</Button>
 			) : (
 				<Button
 					onClick={() => dispatch(triggerModal({ modal: "wallet", trigger: true }))}
-					variant="contained"
+					type="primary"
 					color="primary">
 					Connect Wallet
 				</Button>

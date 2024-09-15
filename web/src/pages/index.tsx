@@ -1,7 +1,6 @@
 import ConnectButton from "@/components/common/wallet/connectButton/connectButton";
 import DisconnectButton from "@/components/common/wallet/disconnectButton/disconnectButton";
 import ShowBalance from "@/components/common/wallet/showBalance/showBalance";
-
 import WalletModal from "@/components/common/wallet/walletModal/walletModal";
 import { triggerModal } from "@/store/slices/modal/modal.slice";
 import { useDispatch, useSelector } from "@/store/store";

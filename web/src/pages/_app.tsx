@@ -1,8 +1,9 @@
 import ConnectionProvider from "@/providers/connection.provider";
-import ThemeProvider from "@/providers/theme.provider";
 import WalletProvider from "@/providers/wallet.provider";
 import store from "@/store/store";
 import "@/styles/globals.css";
+import theme from "@/styles/theme/theme.config";
+import { ConfigProvider } from "antd";
 import { NextPage } from "next";
 import type { AppProps } from "next/app";
 import { ReactElement, ReactNode } from "react";
@@ -19,19 +20,19 @@ type AppPropsWithLayout = AppProps & {
 };
 
 export default function App(props: AppPropsWithLayout) {
+	// const ConfigProvider = dynamic(() => import("antd").then((res) => res.ConfigProvider), { ssr: false });
+
 	const { pageProps, Component } = props;
 	const defaultLayout = (page: ReactElement): ReactNode => <div>{page}</div>;
 	const getLayout = Component.layout ?? defaultLayout;
 
 	return (
-		<>
+		<ConfigProvider theme={theme}>
 			<ConnectionProvider>
 				<WalletProvider>
-					<Provider store={store}>
-						<ThemeProvider>{getLayout(<Component {...pageProps} />)}</ThemeProvider>
-					</Provider>
+					<Provider store={store}>{getLayout(<Component {...pageProps} />)}</Provider>
 				</WalletProvider>
 			</ConnectionProvider>
-		</>
+		</ConfigProvider>
 	);
 }
