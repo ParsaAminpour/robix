@@ -36,7 +36,7 @@ yarn-error.log*
 next-env.d.ts
 
 # anchor
-/robix/.anchor
-/robix/target
-/robix/node_modules
+robix/.anchor/
+robix/target/
+robix/node_modules/
 
