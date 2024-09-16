@@ -10,6 +10,12 @@ const theme: ThemeConfig = {
 		fontFamily: PoppinsFont.style.fontFamily,
 		colorText: "#000000",
 	},
+	components: {
+		Layout: {
+			headerBg: "#20222E",
+			siderBg: "#20222E",
+		},
+	},
 };
 
 export default theme;
