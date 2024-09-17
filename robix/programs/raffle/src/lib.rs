@@ -8,6 +8,8 @@ pub mod raffle_error;
 declare_id!("7iKkN561Q2C5w9ooaf5U7LHnVtH3VyyErWiiUr1TJcRk");
 
 const INIT_TREASURY_FUND: f32 = 0.01 * (LAMPORTS_PER_SOL as f32);
+pub const RAFFLE_SEED: [u8; 6] = *b"raffle";
+
 
 #[program]
 pub mod raffle {
@@ -37,6 +39,7 @@ pub mod raffle {
         ctx.accounts.raffle_info.end_time = end_time;
         ctx.accounts.raffle_info.creator = ctx.accounts.signer.key();
         ctx.accounts.raffle_info.is_closed = false;
+        ctx.accounts.raffle_info.active = true;
         
         ctx.accounts.transfer(
             ctx.accounts.system_program.to_account_info(), 
@@ -245,6 +248,7 @@ impl<'a> Transfer<'a> for InitializeRaffle<'a> {}
 #[derive(Accounts)]
 #[instruction(raffle_name: String, creator: Pubkey)]
 pub struct Participate<'info> {
+    // @audit realloc instructions should be defined.
     #[account(
         mut,
         seeds = ["raffle".as_ref(), raffle_name.as_ref(), creator.key().as_ref()],
@@ -389,6 +393,7 @@ pub struct RaffleInfo {
     pub creator: Pubkey,
     pub winner: Option<Pubkey>,
     pub is_closed: bool,
+    pub active: bool,
     pub treasury_bump: u8,
 }
 
