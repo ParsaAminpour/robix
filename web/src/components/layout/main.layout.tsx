@@ -1,63 +1,67 @@
+import ModalProvider from "@/providers/modal.provider";
 import { BaseProps } from "@/types/global.types";
 import { Flex, Layout } from "antd";
+import Header from "./header/header";
 
-const { Header, Footer, Sider, Content } = Layout;
+const { Header: AntHeader, Footer, Sider, Content } = Layout;
+
+const HEADER_HEIGHT = "64px";
+const SIDER_WIDTH = "76px";
+const FOOTER_HEIGHT = "78px";
 
 const headerStyle: React.CSSProperties = {
-	textAlign: "center",
-	color: "#fff",
-	paddingInline: 48,
-	lineHeight: "64px",
-	backgroundColor: "blue",
+	borderBottom: "1px solid #3E404C",
+	height: HEADER_HEIGHT,
+	padding: 0,
 };
 
 const contentStyle: React.CSSProperties = {
-	textAlign: "center",
-	lineHeight: "120px",
 	flexGrow: 1,
-	width: "100%",
-	height: "100%",
-	color: "#fff",
 };
 
 const siderStyle: React.CSSProperties = {
-	textAlign: "center",
-	lineHeight: "120px",
-	color: "#fff",
-	height: "100%",
-	backgroundColor: "green",
+	borderRight: "1px solid #3E404C",
 };
 
 const footerStyle: React.CSSProperties = {
-	textAlign: "center",
-	color: "#fff",
-	backgroundColor: "red",
+	background: "#20222E66",
 	width: "100%",
-	height: "78px",
+	height: FOOTER_HEIGHT,
+	borderTop: "1px solid #3E404C",
 };
 
-const layoutStyle = {
+const layoutStyle: React.CSSProperties = {
 	borderRadius: 8,
-	height: "100svh",
+	minHeight: "100svh",
+	height: "100%",
+	width: "100%",
 };
 
 const MainLayout: BaseProps = ({ children }) => {
 	return (
 		<Layout style={layoutStyle}>
-			<Header style={headerStyle}>Header</Header>
+			<AntHeader style={headerStyle}>
+				<Header />
+			</AntHeader>
 			<Layout>
 				<Sider
-					width="100px"
+					width={SIDER_WIDTH}
 					style={siderStyle}>
 					Sider
 				</Sider>
 				<Flex
 					vertical
-					style={{ width: "100%" }}>
+					style={{
+						width: "100%",
+						// background: `url(/assets/images/layout-bg.png)`,
+						background: `#20222E`,
+						backgroundSize: "cover",
+					}}>
 					<Content style={contentStyle}>{children}</Content>
 					<Footer style={footerStyle}>Footer</Footer>
 				</Flex>
 			</Layout>
+			<ModalProvider />
 		</Layout>
 	);
 };
