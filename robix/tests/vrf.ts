@@ -105,17 +105,12 @@ const program = new Program<CoinFlip>(
 );
 
 async function main(decision:number, player:Keypair) {
-
-
-
   const connection = program.provider.connection;
-
 
   const current_feeds_account = PublicKey.findProgramAddressSync(
     [Buffer.from("c"), Buffer.from([1])],
     rngProgram
   );
-
 
   const currentFeedsAccountInfo = await connection.getAccountInfo(
     current_feeds_account[0]
