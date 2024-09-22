@@ -4,6 +4,8 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use solana_program::keccak::hash as keccak_hash;
 
 pub mod raffle_error;
+pub mod state;
+pub mod constants;
 
 declare_id!("7iKkN561Q2C5w9ooaf5U7LHnVtH3VyyErWiiUr1TJcRk");
 
@@ -24,6 +26,7 @@ pub mod raffle {
     /// - `max_tickets`: The maximum number of tickets available in this raffle.
     /// - `end_time`: The deadline for the raffle.
     /// * NOTE: Adding initial lamports to paying the Switchboard randomness fees.
+    // @audit-info an EndRaffle should be an initialization either.
     pub fn initialize_raffle(ctx: Context<InitializeRaffle>, raffle_name: String, ticket_price: u64, max_tickets: u32, end_time: u64) -> Result<()> {
         let time = Clock::get().unwrap();
         require!(raffle_name.len() > 1, raffle_error::ErrorCode::EmptyStringNotAllowed);
@@ -59,31 +62,31 @@ pub mod raffle {
     /// # Arguments:
     /// - `ctx` Context for participating to the raffle.
     pub fn participate(ctx: Context<Participate>, _raffle_name: String, _creator: Pubkey) -> anchor_lang::Result<()> {
-        require!(ctx.accounts.raffle_info.winner.is_none() || !ctx.accounts.raffle_info.is_closed, raffle_error::ErrorCode::WinnerAlreadySelected);
-        require_gte!(ctx.accounts.sender.lamports(), ctx.accounts.raffle_info.ticket_price, raffle_error::ErrorCode::NotSufficientBalance);
-        require_gte!(ctx.accounts.raffle_info.max_tickets, ctx.accounts.raffle_info.total_ticket_sold, raffle_error::ErrorCode::TicketAmountThreshold);
-        require!(ctx.accounts.raffle_info.start_time < ctx.accounts.raffle_info.end_time, raffle_error::ErrorCode::RaffleExpired);
+        // require!(ctx.accounts.raffle_info.winner.is_none() || !ctx.accounts.raffle_info.is_closed, raffle_error::ErrorCode::WinnerAlreadySelected);
+        // require_gte!(ctx.accounts.sender.lamports(), ctx.accounts.raffle_info.ticket_price, raffle_error::ErrorCode::NotSufficientBalance);
+        // require_gte!(ctx.accounts.raffle_info.max_tickets, ctx.accounts.raffle_info.total_ticket_sold, raffle_error::ErrorCode::TicketAmountThreshold);
+        // require!(ctx.accounts.raffle_info.start_time < ctx.accounts.raffle_info.end_time, raffle_error::ErrorCode::RaffleExpired);
         
-        ctx.accounts.transfer(
-            ctx.accounts.system_program.to_account_info(), 
-            ctx.accounts.sender.to_account_info(), 
-            ctx.accounts.treasury.to_account_info(), 
-            ctx.accounts.raffle_info.ticket_price, 
-            false, 
-            &[&[&[1_u8]]]
-        )?;
+        // ctx.accounts.transfer(
+        //     ctx.accounts.system_program.to_account_info(), 
+        //     ctx.accounts.sender.to_account_info(), 
+        //     ctx.accounts.treasury.to_account_info(), 
+        //     ctx.accounts.raffle_info.ticket_price, 
+        //     false, 
+        //     &[&[&[1_u8]]]
+        // )?;
         
-        let associated_raffle = &mut ctx.accounts.raffle_info;
-        associated_raffle.total_ticket_sold = associated_raffle.total_ticket_sold.checked_add(1).unwrap();
+        // let associated_raffle = &mut ctx.accounts.raffle_info;
+        // associated_raffle.total_ticket_sold = associated_raffle.total_ticket_sold.checked_add(1).unwrap();
             
-        associated_raffle.raffle_pool += associated_raffle.ticket_price;
+        // associated_raffle.raffle_pool += associated_raffle.ticket_price;
 
-        ctx.accounts
-            .participant_list
-            .participants
-            .push(ctx.accounts.sender.key());
+        // ctx.accounts
+        //     .participant_list
+        //     .participants
+        //     .push(ctx.accounts.sender.key());
 
-        msg!("{} Joined to the list of participants", ctx.accounts.sender.key().to_string());
+        // msg!("{} Joined to the list of participants", ctx.accounts.sender.key().to_string());
         Ok(())
     }
 
@@ -93,24 +96,24 @@ pub mod raffle {
     /// - `ctx` Context for participating to the raffle.
     /// * NOTE: Only the owner of the raffle could call this function.
     pub fn winner_selection(ctx: Context<WinnerSelection>, _raffle_name: String) -> Result<()> {
-        require!(ctx.accounts.raffle_info.winner.is_none(), raffle_error::ErrorCode::WinnerAlreadySelected);
+        // require!(ctx.accounts.raffle_info.winner.is_none(), raffle_error::ErrorCode::WinnerAlreadySelected);
 
-        //// Generating randomness - the Feed protocol will add here ////
-        let clock: Clock = Clock::get().unwrap();
-        let participants_count = ctx.accounts.participant_list.participants.len();
-        // @audit-info the feed protocol will be replaced in this section after they resolve their protocol bug.
-        let revealed_random_value = ctx
-            .accounts
-            .rpng(&clock.unix_timestamp, participants_count as u64);
+        // //// Generating randomness - the Feed protocol will add here ////
+        // let clock: Clock = Clock::get().unwrap();
+        // let participants_count = ctx.accounts.participant_list.participants.len();
+        // // @audit-info the feed protocol will be replaced in this section after they resolve their protocol bug.
+        // let revealed_random_value = ctx
+        //     .accounts
+        //     .rpng(&clock.unix_timestamp, participants_count as u64);
 
-        // @audit-solved type parsing unsupported value to mod between u32&u8
-        let winner = ctx.accounts.participant_list.participants[revealed_random_value as usize];
-        let winner_selected = ctx.accounts.raffle_info.winner.insert(winner);
-        msg!(
-            "The Winner selected public key: {}, The relevant raffle name: {}",
-            winner_selected.to_string(),
-            ctx.accounts.raffle_info.raffle_name
-        );
+        // // @audit-solved type parsing unsupported value to mod between u32&u8
+        // let winner = ctx.accounts.participant_list.participants[revealed_random_value as usize];
+        // let winner_selected = ctx.accounts.raffle_info.winner.insert(winner);
+        // msg!(
+        //     "The Winner selected public key: {}, The relevant raffle name: {}",
+        //     winner_selected.to_string(),
+        //     ctx.accounts.raffle_info.raffle_name
+        // );
         Ok(())
     }
 
@@ -206,6 +209,7 @@ pub struct InitializeRaffle<'info> {
     #[account(
         init,
         payer = signer,
+        // @audit-info adding raffle number to the seeds for generate.
         seeds = ["raffle".as_ref(), raffle_name.as_ref(), signer.key().as_ref()],
         space = RaffleInfo::INIT_SPACE,
         bump,
@@ -213,24 +217,19 @@ pub struct InitializeRaffle<'info> {
     pub raffle_info: Account<'info, RaffleInfo>,
 
     #[account(
-        init,
-        payer = signer,
-        space = ParticipantList::INIT_SPACE,
-        seeds = ["participant_list".as_ref(), raffle_name.as_ref()],
-        bump
-    )]
-    pub participant_list: Account<'info, ParticipantList>,
-
-    #[account(
         mut,
         seeds = [b"treasury".as_ref()],
         bump
     )]
+
+    // @audit-info this should be the fee vault.
     /// CHECK: This is okay - it's a PDA to store SOL and doesn't need a data layout
     pub treasury: SystemAccount<'info>,
 
+    // @audit should determine a constant address as the signer, not an arbitary signer.
     #[account(mut)]
     pub signer: Signer<'info>, // aka creator.
+    #[account(address = anchor_lang::system_program::ID)]
     pub system_program: Program<'info, System>,
 }
 
@@ -245,10 +244,10 @@ impl<'a> Transfer<'a> for InitializeRaffle<'a> {}
 /// - `treasury`: The program's account to receive the ticket cost paid by the user like a treasury.
 /// - `system_program`: The system program account.
 /// *  NOTE: the treasury pubkey of this account should be as same as the ClaimReward's treasury pubkey.
+// @audit realloc instructions should be defined.
 #[derive(Accounts)]
 #[instruction(raffle_name: String, creator: Pubkey)]
 pub struct Participate<'info> {
-    // @audit realloc instructions should be defined.
     #[account(
         mut,
         seeds = ["raffle".as_ref(), raffle_name.as_ref(), creator.key().as_ref()],
@@ -256,15 +255,13 @@ pub struct Participate<'info> {
     )]
     pub raffle_info: Account<'info, RaffleInfo>,
 
-    #[account(mut, seeds=["participant_list".as_ref(), raffle_name.as_ref()], bump)]
-    pub participant_list: Account<'info, ParticipantList>,
-
     #[account(mut)]
     pub sender: Signer<'info>,
 
     /// CHECK: This is not dangerous because we are transferring SOL to the program's account
     #[account(mut, seeds = [b"treasury".as_ref()], bump)]
     pub treasury: SystemAccount<'info>,
+    #[account(address = anchor_lang::system_program::ID)]
     pub system_program: Program<'info, System>,
 }
 
@@ -293,12 +290,9 @@ pub struct WinnerSelection<'info> {
     /// CHECK: The account's data is validated manually within the handler.
     // pub randomness_account_data: AccountInfo<'info>,
 
-    #[account(mut, seeds=["participant_list".as_ref(), raffle_name.as_ref()], bump)]
-    pub participant_list: Account<'info, ParticipantList>,
-
     #[account(mut)]
     pub creator: Signer<'info>,
-
+    #[account(address = anchor_lang::system_program::ID)]
     pub system_program: Program<'info, System>,
 }
 
@@ -391,20 +385,46 @@ pub struct RaffleInfo {
     pub start_time: u64,
     pub end_time: u64,
     pub creator: Pubkey,
+    #[max_len(100)]
+    pub participants: Vec<Ticket>,
     pub winner: Option<Pubkey>,
     pub is_closed: bool,
     pub active: bool,
     pub treasury_bump: u8,
 }
 
-#[account]
-#[derive(InitSpace)]
-pub struct ParticipantList {
-    #[max_len(20)]
-    pub participants: Vec<Pubkey>,
-    pub bump: u8,
+impl RaffleInfo {
+    pub fn get_space() {}
+    pub fn initialize(&mut self) {}
+    pub fn buy_ticket(&mut self) {}
+    pub fn select_winner(&mut self) {}
+    pub fn distribute_prize(&mut self) {}
 }
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct Ticket {
+    owner: Pubkey,
+    count: u8,
+}
+
+impl Space for Ticket {
+    const INIT_SPACE: usize = 1;
+}
+
+// #[account]
+// #[derive(InitSpace)]
+// pub struct ParticipantList {
+//     #[max_len(20)]
+//     pub participants: Vec<Pubkey>,
+//     pub bump: u8,
+// }
 
 pub struct RandomNumber {
     pub random_number: u64,
+}
+
+
+#[account]
+pub struct Vault {
+    pub bump: u8
 }
