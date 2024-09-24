@@ -1,5 +1,6 @@
 use anchor_lang::{AnchorSerialize, AnchorDeserialize};
 use anchor_lang::prelude::*;
+use inline_colorization::*;
 
 use crate::constants::{
     AMOUNT_OF_WINNER, TICKET_PRICE, TICKET_NUMBER_LOWER_RANGE, TICKET_NUMBER_UPPER_RANGE};
@@ -84,7 +85,7 @@ impl RaffleInfo {
         }
         // @audit overflow vulnerable.
         let winning_number = fprng % (self.ticket_number_bound.0 - self.ticket_number_bound.1 + 1) + self.ticket_number_bound.1;
-        // println!("{color_red}The Winning numner is: {}{color_reset}", winning_number);
+        // println!("\n{color_yellow}self.tickets (before): {:?}{color_reset}\n", self.tickets.clone());
 
         let mut updated_tickets: Vec<Ticket> = self.tickets.clone().into_iter()
             .map(|ticket| {
@@ -92,9 +93,12 @@ impl RaffleInfo {
                 ticket
         }).collect();
         updated_tickets.sort_by_key(|t| t.ticket_number);
+        updated_tickets.reverse();
 
-        let mut winners: Vec<Ticket> = self.tickets[..(AMOUNT_OF_WINNER as usize)].to_vec();
-        winners.reverse();
+        // println!("{color_green}self.tickets (after): {:?}{color_reset}\n", self.tickets.clone());
+        // println!("{color_green}updated_tickets (after): {:?}{color_reset}\n", updated_tickets.clone());
+
+        let winners: Vec<Ticket> = updated_tickets[..(AMOUNT_OF_WINNER as usize)].to_vec();
         /* First three tickets that are near to the rnd point are the winners and the
         * prize will be distributed among these guys,
         * 1st person: 50%  |  2nd person: 30%  |  3th person: 20% */
@@ -180,8 +184,8 @@ mod tests {
         // ticket numbers are not in this order obvs.
         m_raffle.buy_ticket(RAFFLE_PARTICIPANT1, TEST_RAFFLE_TICKET_NUMBER).unwrap();
         m_raffle.buy_ticket(RAFFLE_PARTICIPANT2, TEST_RAFFLE_TICKET_NUMBER + 5).unwrap();
-        m_raffle.buy_ticket(RAFFLE_PARTICIPANT3, TEST_RAFFLE_TICKET_NUMBER + 25).unwrap();
         m_raffle.buy_ticket(RAFFLE_PARTICIPANT4, TEST_RAFFLE_TICKET_NUMBER - 30).unwrap();
+        m_raffle.buy_ticket(RAFFLE_PARTICIPANT3, TEST_RAFFLE_TICKET_NUMBER + 25).unwrap();
         m_raffle.buy_ticket(RAFFLE_PARTICIPANT5, TEST_RAFFLE_TICKET_NUMBER - 15).unwrap();
 
         assert_eq!(m_raffle.total_ticket_sold, 5);
