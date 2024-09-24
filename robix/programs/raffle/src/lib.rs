@@ -5,9 +5,10 @@ use solana_program::keccak::hash as keccak_hash;
 
 pub mod raffle_error;
 pub mod state;
+pub mod instructions;
+pub mod id;
 pub mod constants;
-
-declare_id!("7iKkN561Q2C5w9ooaf5U7LHnVtH3VyyErWiiUr1TJcRk");
+pub use id::ID;
 
 const INIT_TREASURY_FUND: f32 = 0.01 * (LAMPORTS_PER_SOL as f32);
 pub const RAFFLE_SEED: [u8; 6] = *b"raffle";
