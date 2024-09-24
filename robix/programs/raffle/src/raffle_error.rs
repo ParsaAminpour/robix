@@ -14,10 +14,22 @@ pub enum ErrorCode {
     WinnerAlreadySelected,
     #[msg("Insufficient amount to transfer")]
     InsufficientBalance,
+
     WinnerIsNotSelectedYet,
+
     RaffleExpired,
+
     SameDestinationAddressNotAllowed,
+
     RaffleIsNotClosed,
+
     CallerIsNotWinner,
-    NotSufficientBalance
+    
+    NotSufficientBalance,
+
+    SignerIsNotValid,
+
+    NotValidTreasuryAddress,
+
+    InvalidFeedRNGAddress
 }

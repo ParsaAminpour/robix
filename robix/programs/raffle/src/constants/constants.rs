@@ -2,7 +2,7 @@
 pub const FEE_VAULT: &str = "68zZq8P3An1z98askGjUeUPijnaHpvnYcZNVeiM2pTrz";
 
 /// This is the authority to initiatialize stuff.
-pub const AUTHORITY: &str = "AUTHtStYmZz7G8KQz6R6FmussLgPrybNhHx4EZzQwFBF";
+pub const RAFFLE_OWNER: &str = "AUTHtStYmZz7G8KQz6R6FmussLgPrybNhHx4EZzQwFBF";
 // (DEV: AuthtWB95Cf3KaHh2gTsQLfKNtsGMgFg9BxgqbHjeLVy)
 
 /// The current version of the Raffle account.
@@ -36,7 +36,18 @@ pub const STALENESS_THRESHOLD: u64 = 1; // staleness threshold in seconds
 
 pub const RAFFLE_INIT_SEED: &str = "raffle";
 
+/// Amount of tickets for selecting winners.
 pub const AMOUNT_OF_WINNER: u32 = 3;
 
+/// The ticket number boundaries.
 pub const TICKET_NUMBER_LOWER_RANGE: u64 = 5000;
 pub const TICKET_NUMBER_UPPER_RANGE: u64 = 6000;
+
+/// Anchor seeds for raffle pda generating using `create_program_address`
+pub const RAFFLE_SEED: [u8; 6] = *b"raffle";
+
+pub const TREASURY_SEED: [u8; 8] = *b"treasury";
+
+pub const TRACKER_SEED: [u8; 7] = *b"tracker";
+
+pub const FPRNG_PROGRAM_ADDRESS: &str = "9uSwASSU59XvUS8d1UeU8EwrEzMGFdXZvQ4JSEAfcS7k";
