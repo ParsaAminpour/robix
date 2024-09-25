@@ -1,9 +1,9 @@
 /// Fee Vault @audit should be changed these constants.
-pub const FEE_VAULT: &str = "68zZq8P3An1z98askGjUeUPijnaHpvnYcZNVeiM2pTrz";
+pub const FEE_VAULT: &str = "264r45MGssHfx4gnof4wu7uoSk44Rk5WFgPkRb5JrzA9,255";
 
 /// This is the authority to initiatialize stuff.
-pub const RAFFLE_OWNER: &str = "AUTHtStYmZz7G8KQz6R6FmussLgPrybNhHx4EZzQwFBF";
-// (DEV: AuthtWB95Cf3KaHh2gTsQLfKNtsGMgFg9BxgqbHjeLVy)
+pub const RAFFLE_OWNER: &str = "BGAdbX9mWxxZ1PKPy9J5bvvEhL5vbwJo9wodYafefEfK";  
+// (DEV: BGAdbX9mWxxZ1PKPy9J5bvvEhL5vbwJo9wodYafefEfK)
 
 /// The current version of the Raffle account.
 const _RENT_ADDITION: u64 = 1_120_560; // amount for + rent of 33 bytes

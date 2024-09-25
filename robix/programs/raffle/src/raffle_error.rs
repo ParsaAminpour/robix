@@ -31,5 +31,9 @@ pub enum ErrorCode {
 
     NotValidTreasuryAddress,
 
-    InvalidFeedRNGAddress
+    InvalidFeedRNGAddress,
+
+    RandomnessGeneratorFailed,
+    #[msg("When raffle is in participant instruction is not equal to game tracker active raffle id")]
+    RaffleIdIsInvalid
 }

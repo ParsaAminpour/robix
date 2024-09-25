@@ -1,4 +1,5 @@
 use anchor_lang::{AnchorSerialize, AnchorDeserialize};
+use borsh::{BorshSerialize, BorshDeserialize};
 use anchor_lang::prelude::*;
 use inline_colorization::*;
 
@@ -85,7 +86,6 @@ impl RaffleInfo {
         }
         // @audit overflow vulnerable.
         let winning_number = fprng % (self.ticket_number_bound.0 - self.ticket_number_bound.1 + 1) + self.ticket_number_bound.1;
-        // println!("\n{color_yellow}self.tickets (before): {:?}{color_reset}\n", self.tickets.clone());
 
         let mut updated_tickets: Vec<Ticket> = self.tickets.clone().into_iter()
             .map(|ticket| {
@@ -95,9 +95,6 @@ impl RaffleInfo {
         updated_tickets.sort_by_key(|t| t.ticket_number);
         updated_tickets.reverse();
 
-        // println!("{color_green}self.tickets (after): {:?}{color_reset}\n", self.tickets.clone());
-        // println!("{color_green}updated_tickets (after): {:?}{color_reset}\n", updated_tickets.clone());
-
         let winners: Vec<Ticket> = updated_tickets[..(AMOUNT_OF_WINNER as usize)].to_vec();
         /* First three tickets that are near to the rnd point are the winners and the
         * prize will be distributed among these guys,
@@ -105,8 +102,7 @@ impl RaffleInfo {
         self.winner = Some(winners);
         self.active = false;
         Ok(())
-
-    }   
+    }
     // To avoid same ticket number result.
     pub fn verify_ticket_number_uniqueness(&self, _t_number_to_examine: u64) -> bool {
         // verifying ticket using binary search. if true: the number is useable.
@@ -124,6 +120,11 @@ pub struct RaffleFeeVault {
 }
 impl Space for RaffleFeeVault {
     const INIT_SPACE: usize= 8 + 1;
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct FPVRF {
+    pub randomness: u64
 }
 
 #[error_code]
@@ -197,7 +198,6 @@ mod tests {
         assert_eq!(m_raffle.clone().winner.unwrap()[0].ticket_number, 5269);
         assert_eq!(m_raffle.clone().winner.unwrap()[1].ticket_number, 5249);
         assert_eq!(m_raffle.clone().winner.unwrap()[2].ticket_number, 5244);
-
         assert!(!m_raffle.active);
     }
     
