@@ -1,11 +1,10 @@
 use core::fmt;
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::debug_account_data::debug_account_data;
 use anchor_lang::{AnchorSerialize, AnchorDeserialize};
 // use std::str::FromStr;
 #[cfg(not(feature = "no-entrypoint"))]
-use {default_env::default_env, solana_security_txt::security_txt};
+use solana_security_txt::security_txt;
 
 #[cfg(not(feature = "no-entrypoint"))]
 security_txt! {
@@ -27,15 +26,58 @@ pub mod manager {
             ctx.accounts.signer.to_account_info(), 
             ctx.accounts.treasury.to_account_info(), 
             amount, 
-            true)
+            true,
+            &[&[&[1_u8]]]
+        )
         {
             Ok(_) => {
-                ctx.accounts.abstraction_account.add_balance(amount).unwrap();
-                ctx.accounts.abstraction_account.init(ctx.accounts.signer.key(), amount, 0).unwrap();
+                ctx.accounts.account_data.add_balance(amount).unwrap();
+                ctx.accounts.account_data.init(ctx.accounts.signer.key(), amount, 0).unwrap();
             },
             Err(_) => return err!(ErrorCode::TransferFailed),
         }
 
+        Ok(())
+    }
+
+    pub fn depoit_fund(ctx: Context<DepositFund>, amount: u64) -> anchor_lang::Result<()> {
+        require_eq!(ctx.accounts.account_data.owner, ctx.accounts.signer.key(), ErrorCode::SignerIsNotOwner);
+        require_gt!(amount, 0, ErrorCode::ZeroAmountNotAllowed);
+
+        match ctx.accounts.funding(
+            ctx.accounts.system_program.to_account_info(),
+            ctx.accounts.signer.to_account_info(),
+            ctx.accounts.treasury.to_account_info(),
+            amount,
+            true,
+            &[&[&[1_u8]]])
+        {
+            Ok(_) => ctx.accounts.account_data.add_balance(amount).unwrap(),
+            Err(_) => return err!(ErrorCode::TransferFailed),
+        }
+        Ok(())
+    }
+
+    pub fn withdraw_fund(ctx: Context<WithdrawFund>, amount: u64) -> anchor_lang::Result<()> {
+        require_eq!(ctx.accounts.account_data.owner, ctx.accounts.signer.key(), ErrorCode::SignerIsNotOwner);
+        require_gte!(ctx.accounts.account_data.balance - ctx.accounts.account_data.locked_balance, amount, ErrorCode::InsufficientBalance);
+        require_gt!(amount, 0, ErrorCode::ZeroAmountNotAllowed);
+        
+        let bump = &[ctx.bumps.treasury];
+        let seeds: &[&[u8]] = &[b"treasury".as_ref(), bump];
+        let signer_seeds = &[seeds];
+
+        match ctx.accounts.funding(
+            ctx.accounts.system_program.to_account_info(),
+            ctx.accounts.treasury.to_account_info(),
+            ctx.accounts.signer.to_account_info(),
+            amount,
+            false,
+            signer_seeds)
+        {
+            Ok(_) => ctx.accounts.account_data.sub_balance(amount).unwrap(),
+            Err(_) => return err!(ErrorCode::TransferFailed),
+        }
         Ok(())
     }
 }
@@ -52,9 +94,9 @@ pub struct CreateAccount<'info> {
         seeds = [b"account".as_ref(), signer.key().as_ref()],
         bump
     )]
-    pub abstraction_account: Account<'info, AccountData>,
+    pub account_data: Account<'info, AccountData>,
 
-    // @audit adding ownership constraints.
+    // @audit adding ownership constraints and owner management for the treasury..
     #[account(mut, seeds=[b"treasury".as_ref()], bump)]
     pub treasury: SystemAccount<'info>,
 
@@ -81,7 +123,10 @@ pub struct DepositFund<'info> {
 
     #[account(mut)]
     pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>
 }
+
+impl <'a> Transfer<'a> for DepositFund<'a> {}
 
 #[derive(Accounts)]
 #[instruction(amount: u64)]
@@ -99,13 +144,19 @@ pub struct WithdrawFund<'info> {
 
     #[account(mut)]
     pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>
 }
+
+impl<'a> Transfer<'a> for WithdrawFund<'a> {}
+
 
 #[account]
 pub struct AccountData {
-    owner: Pubkey,
-    balance: u64,
-    locked_balance: u64,
+    pub owner: Pubkey,
+    // @audit-info intense security checks should be applied on this arg.
+    pub balance: u64,
+    // when user participate in any game
+    pub locked_balance: u64,
 }
 
 impl fmt::Debug for AccountData {
@@ -149,7 +200,7 @@ impl AccountData {
 }
 
 trait Transfer<'a> {
-    fn funding(&mut self, system_program: AccountInfo<'a>, sender: AccountInfo<'a>, receiver: AccountInfo<'a>, amount: u64, direction: bool) -> Result<bool> {
+    fn funding(&mut self, system_program: AccountInfo<'a>, sender: AccountInfo<'a>, receiver: AccountInfo<'a>, amount: u64, direction: bool, signer_seeds: &[&[&[u8]]]) -> Result<bool> {
         require_gte!(sender.get_lamports(), amount, ErrorCode::InsufficientBalance);
         require_neq!(sender.key(), receiver.key(), ErrorCode::SameDestination);
         if direction {
@@ -168,12 +219,14 @@ trait Transfer<'a> {
                 // vice versa
                 anchor_lang::system_program::transfer(
                     CpiContext::new(
-                        system_program.to_account_info(), 
-                anchor_lang::system_program::Transfer {
-                    from: sender.to_account_info(),
-                    to: receiver.to_account_info(),
-                }),
-                amount).unwrap();
+                        system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: sender.to_account_info(),
+                            to: receiver.to_account_info()
+                        }
+                    ).with_signer(signer_seeds), 
+                    amount
+                ).unwrap();
                 msg!("SOL transfered from {} to treasury", receiver.key());
             }
             Ok(true)

@@ -1,13 +1,13 @@
-import { Stack, Typography } from "@mui/material";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Flex, Typography } from "antd";
 import { memo, useEffect, useState } from "react";
+const { Title, Text } = Typography;
 
 const ShowBalance = () => {
 	const { publicKey } = useWallet();
 	const { connection } = useConnection();
 	const [balance, setBalance] = useState<number>(0);
-
 	useEffect(() => {
 		if (!publicKey) {
 			setBalance(0);
@@ -28,13 +28,10 @@ const ShowBalance = () => {
 	}, [publicKey, connection]);
 
 	return (
-		<Stack
-			direction={"row"}
-			alignItems={"center"}
-			gap={"10px"}>
-			<Typography variant="h6">Balance: </Typography>
-			<Typography variant="body1">{balance}</Typography>
-		</Stack>
+		<Flex>
+			<Title level={2}>Balance: </Title>
+			<Text>{balance}</Text>
+		</Flex>
 	);
 };
 

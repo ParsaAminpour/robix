@@ -1,15 +1,14 @@
+import Container from "@/components/common/container/container";
+import PageContainer from "@/components/common/pageContainer/pageContainer";
 import ConnectButton from "@/components/common/wallet/connectButton/connectButton";
 import DisconnectButton from "@/components/common/wallet/disconnectButton/disconnectButton";
 import ShowBalance from "@/components/common/wallet/showBalance/showBalance";
-
-import WalletModal from "@/components/common/wallet/walletModal/walletModal";
-import { triggerModal } from "@/store/slices/modal/modal.slice";
-import { useDispatch, useSelector } from "@/store/store";
+import { Col, Row, Typography } from "antd";
 import Head from "next/head";
 
+const { Title } = Typography;
+
 export default function Home() {
-	const dispatch = useDispatch();
-	const { modals } = useSelector((state) => state.modal);
 	return (
 		<>
 			<Head>
@@ -27,14 +26,53 @@ export default function Home() {
 					href="/favicon.ico"
 				/>
 			</Head>
-			<h1>Hello Robix</h1>
-			<ConnectButton />
-			<DisconnectButton />
-			<ShowBalance />
-			<WalletModal
-				onClose={() => dispatch(triggerModal({ modal: "wallet", trigger: false }))}
-				open={modals.wallet}
-			/>
+
+			<PageContainer>
+				<Container maxWidth={"xl"}>
+					<Title>Hello Robix</Title>
+					<DisconnectButton />
+					<ShowBalance />
+
+					<Row gutter={[16, 8]}>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+						<Col span={2}>
+							<div>item </div>
+						</Col>
+					</Row>
+				</Container>
+			</PageContainer>
 		</>
 	);
 }
