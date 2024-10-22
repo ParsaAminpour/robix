@@ -172,7 +172,7 @@ describe("Testing Raffle instructions", () => {
 
     const connection = program.provider.connection;
     
-    const INIT_RAFFLE_IDX = BigInt(1);
+    const INIT_RAFFLE_IDX = BigInt(0);
     raffle_seeds = [RAFFLE_SEED, raffleNumberBuffer(INIT_RAFFLE_IDX), auth.toBuffer()];
     raffle_pda = web3.PublicKey.findProgramAddressSync(
       raffle_seeds,
@@ -245,15 +245,15 @@ describe("Testing Raffle instructions", () => {
       Signer address: \x1b[32m${auth}\x1b[37m\n`
     );
 
-    // const init_raffle_tx = await program.methods.initializeRaffle().accounts([
-    //   { name: "tracker", pda: tracker_pda, signer: false, writable: true },
-    //   { name: "raffleInfo", pda: raffle_pda, signer: false, writable: true },
-    //   { name: "treasury", pda: treasury_pda, signer: false, writable: true},
-    //   { name: "auth", pda: auth, signer: true, writable: true },
-    //   { name: "systemProgram", pda: web3.SystemProgram.programId, signer: false, writable: false },
-    // ])
-    // .signers([])
-    // .rpc()
+    const init_raffle_tx = await program.methods.initializeRaffle().accounts([
+      { name: "raffleInfo", pda: raffle_pda, signer: false, writable: true },
+      { name: "tracker", pda: tracker_pda, signer: false, writable: true },
+      { name: "treasury", pda: treasury_pda, signer: false, writable: true},
+      { name: "auth", pda: auth, signer: true, writable: true },
+      { name: "systemProgram", pda: web3.SystemProgram.programId, signer: false, writable: false },
+    ])
+    .signers([])
+    .rpc()
 
     // await confirmTransaction(provider.connection, init_raffle_tx);
   })

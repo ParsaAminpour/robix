@@ -147,7 +147,7 @@ pub fn participate(ctx: Context<Participate>, active_raffle:u64) -> anchor_lang:
         data: vec![0],
     };
 
-    //Creating account infos for CPI to RNG_PROGRAM
+    // Creating account infos for CPI to RNG_PROGRAM
     let account_infos: &[AccountInfo; 8] = &[
         ctx.accounts.participant.to_account_info().clone(),
         ctx.accounts.feed_account_1.to_account_info().clone(),

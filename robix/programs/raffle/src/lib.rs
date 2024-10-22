@@ -12,13 +12,11 @@ pub mod id;
 pub mod constants;
 pub use id::ID;
 
-
 #[program]
 pub mod raffle {
     use super::*;
 
     /// Initializes a new raffle for the users.
-    ///
     /// # Arguments
     /// - `ctx`: Context for the instruction.
     /// * NOTE: Adding initial lamports to paying the Switchboard randomness fees.
