@@ -1,8 +1,6 @@
 use std::str::FromStr;
-use std::sync::atomic;
-
 use anchor_lang::prelude::*;
-use crate::state::raffle_account::{RaffleInfo, RaffleFeeVault};
+use crate::state::raffle_account::{RaffleInfo, RaffleFeeVault, FPVRF};
 use crate::constants::{
     RAFFLE_SEED, RAFFLE_OWNER, TREASURY_SEED, TRACKER_SEED, FEE_VAULT, FPRNG_PROGRAM_ADDRESS};
 use crate::raffle_error;
@@ -78,12 +76,24 @@ pub fn initialize_raffle(ctx: Context<InitializeRaffle>) -> Result<()> {
 
 
 #[derive(Accounts)]
+#[instruction(active_raffle: u64)]
 pub struct Participate<'info> {
     #[account(
         mut,
-        address = Pubkey::from_str(FEE_VAULT).unwrap() @ raffle_error::ErrorCode::NotValidTreasuryAddress
+        address = Pubkey::from_str(FEE_VAULT).unwrap() @ raffle_error::ErrorCode::RaffleIdIsInvalid
     )]
     pub treasury: Account<'info, RaffleFeeVault>,
+
+    #[account(
+        mut,
+        seeds = [RAFFLE_SEED.as_ref(), &active_raffle.to_le_bytes(), game_tracker.active_raffle_owner.as_ref()],
+        bump = raffle_info.raffle_bump,
+        constraint = active_raffle == game_tracker.active_raffle @ raffle_error::ErrorCode::InvalidFeedRNGAddress,
+        realloc = RaffleInfo::get_space(raffle_info.tickets.len() + 1),
+        realloc::payer = participant,
+        realloc::zero = false  
+    )]
+    pub raffle_info: Account<'info, RaffleInfo>,
 
     #[account(
         mut,
@@ -91,16 +101,6 @@ pub struct Participate<'info> {
         bump = game_tracker.bump
     )]
     pub game_tracker: Account<'info, GameTracker>,
-
-    #[account(
-        mut,
-        seeds = [RAFFLE_SEED.as_ref(), &(game_tracker.active_raffle).to_le_bytes(), game_tracker.active_raffle_owner.as_ref()],
-        bump = raffle_info.raffle_bump,
-        realloc = RaffleInfo::get_space(raffle_info.tickets.len() + 1),
-        realloc::payer = participant,
-        realloc::zero = false  
-    )]
-    pub raffle_info: Account<'info, RaffleInfo>,
 
     #[account(mut)]
     pub participant: Signer<'info>,
@@ -119,14 +119,15 @@ pub struct Participate<'info> {
     #[account(mut)]
     /// CHECK: idk what the hell it this
     pub temp: Signer<'info>,
+    /// CHECK randomness constant address.
     #[account(address = Pubkey::from_str(FPRNG_PROGRAM_ADDRESS).unwrap() @ raffle_error::ErrorCode::InvalidFeedRNGAddress)]
     pub rng_program: AccountInfo<'info>,
 
     #[account(address = anchor_lang::system_program::ID)]
     pub system_program: Program<'info, System>
-}
+}   
 
-pub fn participate(ctx: Context<Participate>) -> anchor_lang::Result<()> {
+pub fn participate(ctx: Context<Participate>, active_raffle:u64) -> anchor_lang::Result<()> {
     // get vrf from Feed protocol using CPI
     let rng_program: &Pubkey = ctx.accounts.rng_program.key;
    
@@ -146,7 +147,7 @@ pub fn participate(ctx: Context<Participate>) -> anchor_lang::Result<()> {
         data: vec![0],
     };
 
-    //Creating account infos for CPI to RNG_PROGRAM
+    // Creating account infos for CPI to RNG_PROGRAM
     let account_infos: &[AccountInfo; 8] = &[
         ctx.accounts.participant.to_account_info().clone(),
         ctx.accounts.feed_account_1.to_account_info().clone(),
@@ -159,21 +160,22 @@ pub fn participate(ctx: Context<Participate>) -> anchor_lang::Result<()> {
     ];
 
     invoke(&instruction, account_infos)?;
-    let return_data: (Pubkey, Vec<u8>) = get_return_data().unwrap();
+    let fpvrf_res: (Pubkey, Vec<u8>) = get_return_data().unwrap();
 
-    // let rnd_number: u64;
-    // if &return_data.0 == rng_program {
-    //     rnd_number = return_data.1;
-    // }
+    let rnd_number: FPVRF;
+    if &fpvrf_res.0 == rng_program {
+        rnd_number = FPVRF::try_from_slice(&fpvrf_res.1)?;
+        msg!("FPVRF result: {}", rnd_number.randomness);
+    } else {
+        return err!(raffle_error::ErrorCode::RandomnessGeneratorFailed);
+    }   
 
     // verify that vrf number based on tickets number
-
     // other obvs instructions.
     Ok(())
 }
 
 impl<'a> Transfer<'a> for Participate<'a> {}
-
 
 
 trait Transfer<'a> {
@@ -210,7 +212,3 @@ trait Transfer<'a> {
         Ok(())
     }
 }
-trait GenerateRandomness<'a> {
-    fn rpng(&mut self, seed: &i64, rng: u64) -> u64;
-}
-
