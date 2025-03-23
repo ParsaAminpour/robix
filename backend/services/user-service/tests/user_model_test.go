@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -50,8 +49,8 @@ func WriteMockDataToDatabase(db *gorm.DB, t *testing.T) error {
 	if err != nil {
 		return err
 	}
-
 	defer file.Close()
+
 	var users []models.User
 	decoder := json.NewDecoder(file)
 	decoder.Decode(&users)
@@ -59,7 +58,6 @@ func WriteMockDataToDatabase(db *gorm.DB, t *testing.T) error {
 		database := models.Database{DB: db}
 		database.CreateUser(&user)
 	}
-
 	return nil
 }
 
@@ -75,9 +73,6 @@ func sendRequest(method, endpoint string, _endpoint func(c echo.Context, db *gor
 		req = httptest.NewRequest(http.MethodPost, endpoint, bytes.NewReader(jsonData))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 
-		// write response in Buffer not the network's port
-		// simulating a request
-
 	case http.MethodGet:
 		req = httptest.NewRequest(http.MethodGet, endpoint, nil)
 
@@ -88,9 +83,11 @@ func sendRequest(method, endpoint string, _endpoint func(c echo.Context, db *gor
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 
 	case http.MethodDelete:
-
+		jsonData, err := json.Marshal(req_body)
+		assert.NoError(t, err)
+		req = httptest.NewRequest(http.MethodDelete, endpoint, bytes.NewReader(jsonData))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	}
-
 	rec = httptest.NewRecorder()
 	ctx := e.NewContext(req, rec)
 	err := _endpoint(ctx, db)
@@ -98,6 +95,7 @@ func sendRequest(method, endpoint string, _endpoint func(c echo.Context, db *gor
 
 	return rec
 }
+
 func TestUserOperationsWithPreAddedUsers(t *testing.T) {
 	db, err := openTestDatabaseOnMEM()
 	assert.NoError(t, err)
@@ -152,6 +150,7 @@ func TestUserOperationsWithPreAddedUsers(t *testing.T) {
 		err = json.Unmarshal(rec.Body.Bytes(), &body_response)
 		assert.NoError(t, err)
 
-		fmt.Printf("usenrame haha: %s\n", body_response.Username)
+		assert.Equal(t, body_response.Username, plain_data["newUsername"])
+		assert.Equal(t, body_response.Email, plain_data["newEmail"])
 	})
 }

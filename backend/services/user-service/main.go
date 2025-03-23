@@ -1,18 +1,25 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/ParsaAminpour/robix/backend/handler"
 	_ "github.com/ParsaAminpour/robix/backend/handler"
 	"github.com/ParsaAminpour/robix/backend/models"
 	_ "github.com/ParsaAminpour/robix/backend/models"
+	"github.com/fatih/color"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv"
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus"
 	_ "golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -96,6 +103,58 @@ func main() {
 
 	e := echo.New()
 
+	skipper := func(c echo.Context) bool {
+		return c.Request().URL.Path == "/metrics"
+	}
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus: true,
+		LogURI:    true,
+		Skipper:   skipper,
+		BeforeNextFunc: func(c echo.Context) {
+			c.Set("customValueFromContext", 42)
+		},
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			value, _ := c.Get("customValueFromContext").(int)
+			color.Green("REQUEST: uri: %v, status: %v, custom-value: %v\n", v.URI, v.Status, value)
+			return nil
+		},
+	}))
+
+	CustomCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "user_service",
+			Name:      "requests_total",
+			Help:      "Total number of requests processed by the MyApp web server.",
+		},
+		[]string{"path", "status"},
+	)
+
+	ErrorCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "user_service",
+			Name:      "errors_total",
+			Help:      "Total number of errors processed by the MyApp web server.",
+		},
+		[]string{"path", "status"},
+	)
+
+	if err := prometheus.Register(CustomCounter); err != nil {
+		color.Red("error while registering custom counter: ", err.Error())
+	}
+	if err := prometheus.Register(ErrorCounter); err != nil {
+		color.Red("error while registering error counter: ", err.Error())
+	}
+
+	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
+		AfterNext: func(c echo.Context, err error) {
+			CustomCounter.WithLabelValues(c.Request().URL.Path, strconv.Itoa(c.Response().Status)).Inc()
+			if err != nil {
+				ErrorCounter.WithLabelValues(c.Request().URL.Path, strconv.Itoa(c.Response().Status)).Inc()
+			}
+		},
+	}))
+	e.GET("/metrics", echoprometheus.NewHandler())
+
 	e.GET("/", endpointHandler(handler.HomePage))
 	e.Group("/users")
 	e.GET("users/all", endpointHandler(handler.GetAllUsers))
@@ -104,5 +163,7 @@ func main() {
 	e.PUT("/users/update", endpointHandler(handler.UpdateUser))
 	e.DELETE("/users/delete/:username", endpointHandler(handler.DeleteUser))
 
-	e.Logger.Fatal(e.Start(":8080"))
+	if err := e.Start(":8080"); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		e.Logger.Fatal(err)
+	}
 }

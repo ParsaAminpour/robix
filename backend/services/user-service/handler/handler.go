@@ -7,24 +7,14 @@ import (
 	"sync"
 
 	"github.com/ParsaAminpour/robix/backend/models"
+	"github.com/ParsaAminpour/robix/backend/utils"
 	"github.com/labstack/echo/v4"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 var (
 	mu = &sync.Mutex{}
 )
-
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return string(bytes), err
-}
-
-func PasswordHashValidation(password, password_hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(password_hash), []byte(password))
-	return err == nil
-}
 
 func HomePage(c echo.Context, db *gorm.DB) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "Welcome to Home page!"})
@@ -39,7 +29,7 @@ func Signup(c echo.Context, db *gorm.DB) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload"})
 	}
 
-	hashedPassword, err := HashPassword(user.Password)
+	hashedPassword, err := utils.HashPassword(user.Password)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
 	}
@@ -119,10 +109,9 @@ func UpdateUser(c echo.Context, db *gorm.DB) error {
 		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
-	user.Username = new_user.NewUsername
-	if new_user.NewEmail != "" {
-		user.Email = new_user.NewEmail
+	err := database.UpdateUser(user, new_user.NewUsername, new_user.NewEmail)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
-	db.Save(&user)
 	return c.JSON(http.StatusOK, user)
 }
