@@ -159,11 +159,10 @@ func (r RedisClient) GetAllQueueMembers(ctx context.Context, queue_id string) ([
 	return players, nil
 }
 
-func (r *RedisClient) GetPlayersByRatingRange(ctx context.Context, queue_id string, start, end int64, threshold int64) ([]models.AbstractPlayer, error) {
+func (r *RedisClient) GetPlayersByRatingRange(ctx context.Context, queue_id string, start, end int64, count_threshold int64) ([]models.AbstractPlayer, error) {
 	if r.client == nil {
 		return nil, fmt.Errorf("redis client is nil")
 	}
-
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -171,7 +170,7 @@ func (r *RedisClient) GetPlayersByRatingRange(ctx context.Context, queue_id stri
 		Min:    strconv.FormatInt(start, 10),
 		Max:    strconv.FormatInt(end, 10),
 		Offset: 0,
-		Count:  threshold,
+		Count:  count_threshold,
 	}).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memebers of queue-%s: %w", queue_id, err)

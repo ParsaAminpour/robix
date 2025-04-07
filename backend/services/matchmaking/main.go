@@ -8,7 +8,9 @@ import (
 	"sync"
 
 	api "github.com/ParsaAminpour/robix/backend/matchmaking/handler"
+	"github.com/ParsaAminpour/robix/backend/matchmaking/internal"
 	GenerateJWTSecret "github.com/ParsaAminpour/robix/backend/matchmaking/middleware"
+	"github.com/ParsaAminpour/robix/backend/matchmaking/models"
 	"github.com/ParsaAminpour/robix/backend/matchmaking/redis"
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
@@ -52,16 +54,16 @@ func main() {
 	GenerateJWTSecret.GenerateJWTSecret()
 
 	// Initialize matchmaking workers
-	// wg.Add(5)
-	// channel := make(chan []models.AbstractPlayer)
-	// for i := 0; i < 5; i++ {
-	// 	go internal.MatchMakeByRatingRange(&wg, channel, ctx, redis_client)
-	// }
+	wg.Add(5)
+	channel := make(chan []models.AbstractPlayer)
+	for i := 0; i < 5; i++ {
+		go internal.MatchMakeByRatingRange(&wg, channel, ctx, redis_client, "queue_1", 0, 100, 3)
+	}
 
-	// go func() {
-	// 	wg.Wait()
-	// 	close(channel)
-	// }()
+	go func() {
+		wg.Wait()
+		close(channel)
+	}()
 
 	e := echo.New()
 

@@ -24,7 +24,7 @@ func (p *Player) NewPlayer(username, queue_id string, mmr float64) *Player {
 }
 
 type AbstractPlayer struct {
-	ID    string
+	ID    string // represents the username of the player
 	Score float64
 }
 
