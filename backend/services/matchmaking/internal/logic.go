@@ -20,8 +20,10 @@ func MatchMakeByRatingRange(wg *sync.WaitGroup, channel chan<- []models.Abstract
 		return err
 	}
 
-	color.Green("players found in queue %s: %v", queue_id, players)
-	channel <- players
+	if len(players) > 0 {
+		color.Green("players found in queue %s: %v", queue_id, players)
+		channel <- players
+	}
 	wg.Done()
 	return nil
 }

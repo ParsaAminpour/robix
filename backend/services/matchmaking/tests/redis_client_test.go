@@ -43,24 +43,24 @@ func TestRedisZAdd(t *testing.T) {
 	redis_client, err := redis.ConnectToRedis(ctx)
 	assert.NoError(t, err)
 
-	player := models.Player{}
-	another_player := models.Player{}
+	player := &models.Player{}
+	another_player := &models.Player{}
 	player = player.NewPlayer("john", queue_id, 0)
 	another_player = another_player.NewPlayer("Elliot", queue_id, 0)
 
 	t.Run("Test ZAdd", func(t *testing.T) {
-		err = redis_client.AddOrUpdatePlayerQueueMMR(ctx, &player)
+		err = redis_client.AddOrUpdatePlayerQueueMMR(ctx, player)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Test ZUpdate", func(t *testing.T) {
-		err = redis_client.AddOrUpdatePlayerQueueMMR(ctx, &player)
+		err = redis_client.AddOrUpdatePlayerQueueMMR(ctx, player)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Test ZRem", func(t *testing.T) {
-		err = redis_client.AddOrUpdatePlayerQueueMMR(ctx, &another_player)
-		err = redis_client.RemovePlayerFromQueueMMR(ctx, &player)
+		err = redis_client.AddOrUpdatePlayerQueueMMR(ctx, another_player)
+		err = redis_client.RemovePlayerFromQueueMMR(ctx, player)
 		assert.NoError(t, err)
 
 		players, err := redis_client.GetAllQueueMembers(ctx, player.QueueID)

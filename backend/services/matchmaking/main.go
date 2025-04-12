@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 
 	api "github.com/ParsaAminpour/robix/backend/matchmaking/handler"
-	"github.com/ParsaAminpour/robix/backend/matchmaking/internal"
-	GenerateJWTSecret "github.com/ParsaAminpour/robix/backend/matchmaking/middleware"
 	"github.com/ParsaAminpour/robix/backend/matchmaking/models"
 	"github.com/ParsaAminpour/robix/backend/matchmaking/redis"
 	"github.com/fatih/color"
@@ -22,7 +25,6 @@ var (
 	redis_client *redis.RedisClient
 	ctx          context.Context
 	wg           sync.WaitGroup
-	mu           sync.Mutex
 )
 
 func endpointHandler(_handler func(c echo.Context, ctx context.Context, redis_client *redis.RedisClient) error) echo.HandlerFunc {
@@ -39,39 +41,76 @@ func main() {
 
 	ctx = context.Background()
 
+	// Setup Signal Handling
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
 	// Initialize Redis
 	var err error
 	redis_client, err = redis.ConnectToRedis(ctx)
 	if err != nil {
 		log.Fatalf("failed to connect to redis: %v", err)
 	}
-
 	if redis_client == nil {
 		log.Fatal("Redis client is nil after initialization")
 	}
 
-	// remove this line after generating the JWT secret
-	GenerateJWTSecret.GenerateJWTSecret()
+	ch_players := make(chan []models.AbstractPlayer, 10) // todo: use dynamic buffered channel
 
-	// Initialize matchmaking workers
-	wg.Add(5)
-	channel := make(chan []models.AbstractPlayer)
-	for i := 0; i < 5; i++ {
-		go internal.MatchMakeByRatingRange(&wg, channel, ctx, redis_client, "queue_1", 0, 100, 3)
-	}
+	// writer goroutine
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+	WRITER_LOOP:
+		for {
+			select {
+			case <-signalChan:
+				color.Red("Received interrupt signal from writer goroutine, shutting down writer goroutine...")
+				close(ch_players)
+				os.Exit(0)
+				break WRITER_LOOP
+			default:
+				fmt.Println("getting players from redis")
+				players, err := redis_client.GetPlayersByRatingRange(ctx, "queue_1", 0, 100, 5)
+				if err != nil {
+					log.Printf("Error getting players: %v", err)
+					continue
+				}
+				if len(players) > 0 {
+					color.Green("found players in writer goroutine: %v", players)
+					ch_players <- players
+				}
+			}
+			time.Sleep(time.Second * 1)
+		}
+		color.Red("Writer goroutine finished")
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-signalChan:
+			color.Red("Received interrupt signal from reader goroutine, shutting down reader goroutine...")
+			close(ch_players)
+			os.Exit(0)
+			break
+		case players := <-ch_players:
+			color.Green("catch players in reader goroutine: %v", players)
+			if err := redis_client.RemoveBatchPlayersFromQueueMMR(ctx, players); err != nil {
+				log.Printf("Error removing players: %v", err)
+			}
+			color.Green("removed players in reader goroutine: %v", players)
+		}
+	}()
 
 	go func() {
 		wg.Wait()
-		close(channel)
+		color.Red("All goroutines finished")
+		os.Exit(0)
 	}()
 
 	e := echo.New()
-
-	// Configure auth middleware
-	// authConfig := customMiddleware.AuthConfig{
-	// 	JWTSecret:      os.Getenv("JWT_SECRET"),
-	// 	UserServiceURL: os.Getenv("USER_SERVICE_URL"),
-	// }
 
 	// Global middleware
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
