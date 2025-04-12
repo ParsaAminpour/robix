@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	api "github.com/ParsaAminpour/robix/backend/matchmaking/handler"
 	"github.com/ParsaAminpour/robix/backend/matchmaking/models"
@@ -25,6 +24,7 @@ var (
 	redis_client *redis.RedisClient
 	ctx          context.Context
 	wg           sync.WaitGroup
+	queue_id     string = "queue_1"
 )
 
 func endpointHandler(_handler func(c echo.Context, ctx context.Context, redis_client *redis.RedisClient) error) echo.HandlerFunc {
@@ -34,18 +34,15 @@ func endpointHandler(_handler func(c echo.Context, ctx context.Context, redis_cl
 }
 
 func main() {
-	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
 	ctx = context.Background()
 
-	// Setup Signal Handling
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Initialize Redis
 	var err error
 	redis_client, err = redis.ConnectToRedis(ctx)
 	if err != nil {
@@ -55,11 +52,10 @@ func main() {
 		log.Fatal("Redis client is nil after initialization")
 	}
 
-	ch_players := make(chan []models.AbstractPlayer, 10) // todo: use dynamic buffered channel
+	// TODO: use dynamic buffered channel
+	ch_players := make(chan []models.AbstractPlayer, 100)
 
-	// writer goroutine
-	wg.Add(1)
-	go func() {
+	removeByRange := func(start, end int64) {
 		defer wg.Done()
 	WRITER_LOOP:
 		for {
@@ -70,39 +66,50 @@ func main() {
 				os.Exit(0)
 				break WRITER_LOOP
 			default:
-				fmt.Println("getting players from redis")
-				players, err := redis_client.GetPlayersByRatingRange(ctx, "queue_1", 0, 100, 5)
+				players, err := redis_client.GetPlayersByRatingRange(ctx, queue_id, start, end, 5)
 				if err != nil {
 					log.Printf("Error getting players: %v", err)
 					continue
 				}
 				if len(players) > 0 {
-					color.Green("found players in writer goroutine: %v", players)
+					fmt.Printf("found players in writer goroutine range %d-%d: %d\n", start, end, len(players))
 					ch_players <- players
 				}
 			}
-			time.Sleep(time.Second * 1)
 		}
 		color.Red("Writer goroutine finished")
-	}()
+	}
 
-	wg.Add(1)
-	go func() {
+	readFromChannel := func() {
 		defer wg.Done()
-		select {
-		case <-signalChan:
-			color.Red("Received interrupt signal from reader goroutine, shutting down reader goroutine...")
-			close(ch_players)
-			os.Exit(0)
-			break
-		case players := <-ch_players:
-			color.Green("catch players in reader goroutine: %v", players)
-			if err := redis_client.RemoveBatchPlayersFromQueueMMR(ctx, players); err != nil {
-				log.Printf("Error removing players: %v", err)
+	READER_LOOP:
+		for {
+			select {
+			case <-signalChan:
+				color.Red("Received interrupt signal from reader goroutine, shutting down reader goroutine...")
+				close(ch_players)
+				os.Exit(0)
+				break READER_LOOP
+			case players := <-ch_players:
+				if err := redis_client.RemoveBatchPlayersFromQueueMMR(ctx, players); err != nil {
+					log.Printf("Error removing players: %v", err)
+				}
+				color.Red("removed players in reader goroutine:")
 			}
-			color.Green("removed players in reader goroutine: %v", players)
 		}
-	}()
+	}
+
+	// writer goroutine
+	wg.Add(3)
+	go removeByRange(0, 100)
+	go removeByRange(100, 200)
+	go removeByRange(200, 300)
+
+	// reader goroutine
+	wg.Add(3)
+	go readFromChannel()
+	go readFromChannel()
+	go readFromChannel()
 
 	go func() {
 		wg.Wait()
@@ -112,7 +119,6 @@ func main() {
 
 	e := echo.New()
 
-	// Global middleware
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus: true,
 		LogURI:    true,
@@ -130,7 +136,6 @@ func main() {
 	}))
 
 	matchmaking := e.Group("/matchmake")
-	// matchmaking.Use(customMiddleware.AuthMiddleware(authConfig))
 	{
 		matchmaking.GET("/queue", endpointHandler(api.GetMembersFromQueue))
 		matchmaking.POST("/join", endpointHandler(api.AddToQueue))
