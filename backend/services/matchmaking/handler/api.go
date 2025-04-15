@@ -7,6 +7,7 @@ import (
 
 	models "github.com/ParsaAminpour/robix/backend/matchmaking/models"
 	"github.com/ParsaAminpour/robix/backend/matchmaking/redis"
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
 
@@ -14,7 +15,7 @@ var (
 	mu = &sync.Mutex{}
 )
 
-func AddToQueue(c echo.Context, ctx context.Context, redis_client *redis.RedisClient) error {
+func AddToQueue(c echo.Context, ctx context.Context, redis_client *redis.RedisClient, clients map[string]*websocket.Conn) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -23,6 +24,9 @@ func AddToQueue(c echo.Context, ctx context.Context, redis_client *redis.RedisCl
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
+	if clients[player.Username] == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "User is not connected to the websocket"})
+	}
 	player = player.NewPlayer(player.Username, player.QueueID, player.MatchmakingRating)
 
 	if err := redis_client.AddOrUpdatePlayerQueueMMR(ctx, player); err != nil {
@@ -56,12 +60,3 @@ func GetMembersFromQueue(c echo.Context, ctx context.Context, redis_client *redi
 	}
 	return c.JSON(http.StatusOK, members)
 }
-
-// MatchmakeByRatingRange matches players by rating range
-// threshod is 5 players within a same rating range
-// func MatchmakeByRatingRange(c echo.Context, ctx context.Context, redis_client *redis.RedisClient) error {
-// 	mu.Lock()
-// 	defer mu.Unlock()
-
-// 	return nil
-// }

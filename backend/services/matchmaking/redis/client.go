@@ -161,6 +161,24 @@ func (r *RedisClient) RemoveBatchPlayersFromQueueMMR(ctx context.Context, player
 	return nil
 }
 
+func (r *RedisClient) RemovePlayerByUsername(ctx context.Context, username string) error {
+	if r.client == nil {
+		return fmt.Errorf("redis client is nil")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+
+	exist, _ := r.client.ZScore(ctx, "queue_1", username).Result()
+	if exist == 1 {
+		fmt.Printf("player does not exist in the queue with score: %f\n", exist)
+	}
+	if err := r.client.ZRem(ctx, "queue_1", username).Err(); err != nil {
+		fmt.Printf("failed to remove user %s from queue %s: %v\n", username, "queue_1", err)
+	}
+	fmt.Printf("User: %s removed from queue\n", username)
+	return nil
+}
+
 func (r RedisClient) GetAllQueueMembers(ctx context.Context, queue_id string) ([]models.AbstractPlayer, error) {
 	if r.client == nil {
 		return nil, fmt.Errorf("redis client is nil")
