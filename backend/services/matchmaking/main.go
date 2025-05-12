@@ -11,30 +11,40 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
-	api "github.com/ParsaAminpour/robix/backend/matchmaking/handler"
+	matchmaking_api "github.com/ParsaAminpour/robix/backend/matchmaking/handler"
 	"github.com/ParsaAminpour/robix/backend/matchmaking/models"
 	"github.com/ParsaAminpour/robix/backend/matchmaking/redis"
 	"github.com/fatih/color"
 	"github.com/gorilla/websocket"
+	consul_api "github.com/hashicorp/consul/api"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 var (
-	redis_client  *redis.RedisClient
-	ctx           context.Context
-	wg            sync.WaitGroup
-	once          sync.Once
-	queue_id      string = "queue_1"
-	upgrader      *websocket.Upgrader
-	Clients       map[string]*websocket.Conn = make(map[string]*websocket.Conn)
-	mu            sync.Mutex
-	joinedMessage string = "You Joined the Game %s"
+	redis_client *redis.RedisClient
+	ctx          context.Context
+	wg           sync.WaitGroup
+	once         sync.Once
+	upgrader     *websocket.Upgrader
+	Clients      map[string]*websocket.Conn = make(map[string]*websocket.Conn)
+	mu           sync.Mutex
+	consulClient *consul_api.Client
 )
 
-func setup() {
+// TODO: Avoid hardcoding Consul Service Registry configs
+const (
+	joinedMessage string = "You Joined the Game %s"
+	serviceId     string = "matchmaking_service"
+	queue_id      string = "queue_1"
+	port          int    = 8081
+	address       string = "127.0.0.1"
+)
+
+func setup() error {
 	once.Do(func() {
 		var err error
 		redis_client, err = redis.ConnectToRedis(ctx)
@@ -45,6 +55,30 @@ func setup() {
 			log.Fatal("Redis client is nil after initialization")
 		}
 
+		// Initialize Consul client
+		// consulConfig := consul_api.DefaultConfig()
+		// consulClient, err = consul_api.NewClient(consulConfig)
+		// if err != nil {
+		// 	log.Fatal("error during initializing Consul client:", err)
+		// }
+
+		// // Register service with Consul
+		// registration := &consul_api.AgentServiceRegistration{
+		// 	ID:      serviceId,
+		// 	Name:    "matchmaking-service",
+		// 	Port:    port,
+		// 	Address: address,
+		// 	Check: &consul_api.AgentServiceCheck{
+		// 		HTTP:     fmt.Sprintf("http://%s:%d/health", address, port),
+		// 		Interval: "10s",
+		// 		Timeout:  "5s",
+		// 	},
+		// }
+
+		// if err := consulClient.Agent().ServiceRegister(registration); err != nil {
+		// 	log.Fatal("error registering service with Consul:", err)
+		// }
+
 		upgrader = &websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -52,8 +86,9 @@ func setup() {
 				return true
 			},
 		}
-		fmt.Println("Redis client and ws upgrader initialized")
+		fmt.Println("Redis client, Consul client, and ws upgrader initialized")
 	})
+	return nil
 }
 
 func endpointHandler(_handler func(c echo.Context, ctx context.Context, redis_client *redis.RedisClient) error) echo.HandlerFunc {
@@ -61,6 +96,7 @@ func endpointHandler(_handler func(c echo.Context, ctx context.Context, redis_cl
 		return _handler(c, ctx, redis_client)
 	}
 }
+
 func joinQueueEndpointHandler(_handler func(c echo.Context, ctx context.Context, redis_client *redis.RedisClient, _ map[string]*websocket.Conn) error) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		return _handler(c, ctx, redis_client, Clients)
@@ -75,7 +111,6 @@ func HandleWebSocket(c echo.Context) error {
 	defer ws.Close()
 
 	username := c.QueryParam("username")
-	fmt.Printf("You are in Handle Websocket with ID: %s\n", username)
 	mu.Lock()
 	Clients[username] = ws
 	mu.Unlock()
@@ -90,7 +125,6 @@ func HandleWebSocket(c echo.Context) error {
 			mu.Lock()
 			delete(Clients, username)
 			mu.Unlock()
-
 			redis_client.RemovePlayerByUsername(ctx, username)
 			color.Red("User %s has been disconnected\n", username)
 			break
@@ -105,6 +139,7 @@ func sendNotificationToPlayers(usernames []string, message string) error {
 			if err := ws_conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
 				return err
 			}
+			// @audit-info should this deletion applied also if there was an error?
 			delete(Clients, username)
 		}
 	}
@@ -119,8 +154,10 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
-	setup()
-	// TODO: use dynamic buffered channel
+	if err := setup(); err != nil {
+		log.Fatal("Failed to setup services:", err)
+	}
+	// @audit-info use dynamic buffered channel
 	ch_players := make(chan []models.AbstractPlayer, 100)
 
 	removeByRange := func(start, end int64) {
@@ -141,6 +178,7 @@ func main() {
 				}
 				if len(players) > 0 {
 					fmt.Printf("found players in writer goroutine range %d-%d: %d\n", start, end, len(players))
+					// @audit what if the buffer is full?
 					ch_players <- players
 				}
 			}
@@ -162,7 +200,6 @@ func main() {
 				if err := redis_client.RemoveBatchPlayersFromQueueMMR(ctx, players); err != nil {
 					log.Printf("Error removing players: %v", err)
 				}
-
 				// Send Notification to players
 				var players_id []string
 				for _, player := range players {
@@ -176,9 +213,14 @@ func main() {
 	}
 	// writer goroutine
 	wg.Add(3)
-	go removeByRange(0, 100)
-	go removeByRange(100, 200)
-	go removeByRange(200, 300)
+	ranges := []struct{ start, end int64 }{
+		{0, 100},
+		{100, 200},
+		{200, 300},
+	}
+	for _, r := range ranges {
+		go removeByRange(r.start, r.end)
+	}
 
 	// reader goroutine
 	numReaders := 6
@@ -214,7 +256,7 @@ func main() {
 	matchmaking := e.Group("/matchmake")
 	{
 		matchmaking.GET("/ws", HandleWebSocket)
-		matchmaking.GET("/queue", endpointHandler(api.GetMembersFromQueue))
+		matchmaking.GET("/queue", endpointHandler(matchmaking_api.GetMembersFromQueue))
 		matchmaking.GET("/clients", func(c echo.Context) error {
 			jsonData, err := json.Marshal(Clients)
 			if err != nil {
@@ -222,11 +264,41 @@ func main() {
 			}
 			return c.JSON(http.StatusOK, map[string]interface{}{"message": jsonData})
 		})
-		matchmaking.POST("/join", joinQueueEndpointHandler(api.AddToQueue))
-		matchmaking.POST("/leave", endpointHandler(api.RemoveFromQueue))
+		matchmaking.POST("/join", joinQueueEndpointHandler(matchmaking_api.AddToQueue))
+		matchmaking.POST("/leave", endpointHandler(matchmaking_api.RemoveFromQueue))
 	}
 
-	if err := e.Start(":8081"); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		e.Logger.Fatal(err)
+	// Add health check endpoint for Consul
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"status": "healthy"})
+	})
+
+	// Start server in a goroutine
+	go func() {
+		if err := e.Start(fmt.Sprintf(":%d", port)); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			e.Logger.Fatal(err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	<-signalChan
+	log.Println("Received shutdown signal")
+
+	// Create shutdown context with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Deregister service from Consul
+	// if err := consulClient.Agent().ServiceDeregister(serviceId); err != nil {
+	// 	log.Printf("Error deregistering service from Consul: %v", err)
+	// }
+
+	// Shutdown Echo server
+	if err := e.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Error shutting down server: %v", err)
 	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
+	log.Println("Server gracefully stopped")
 }

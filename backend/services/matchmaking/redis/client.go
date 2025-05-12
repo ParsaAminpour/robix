@@ -99,8 +99,6 @@ func (r *RedisClient) AddOrUpdatePlayerQueueMMR(ctx context.Context, player *mod
 	mu.Lock()
 	defer mu.Unlock()
 
-	fmt.Println("player.ID", player.ID)
-
 	exist, _ := r.client.ZScore(ctx, player.QueueID, player.Username).Result()
 	if exist != 0 {
 		return fmt.Errorf("player already exists in the queue with score: %f", exist)
@@ -147,15 +145,16 @@ func (r *RedisClient) RemoveBatchPlayersFromQueueMMR(ctx context.Context, player
 	mu.Lock()
 	defer mu.Unlock()
 
-	for _, player := range players {
-		exist, _ := r.client.ZScore(ctx, "queue_1", player.ID).Result()
-		if exist == 1 {
-			fmt.Printf("player does not exist in the queue with score: %f\n", exist)
-			continue
-		}
+	// Get the queue ID from the first player
+	if len(players) == 0 {
+		return nil
+	}
+	queueID := players[0].QueueID
 
-		if err := r.client.ZRem(ctx, "queue_1", player.ID).Err(); err != nil {
-			fmt.Printf("failed to remove user %s from queue %s: %v\n", player.ID, "queue_1", err)
+	for _, player := range players {
+		if err := r.client.ZRem(ctx, queueID, player.ID).Err(); err != nil {
+			fmt.Printf("failed to remove user %s from queue %s: %v\n", player.ID, queueID, err)
+			continue
 		}
 	}
 	return nil
@@ -179,7 +178,7 @@ func (r *RedisClient) RemovePlayerByUsername(ctx context.Context, username strin
 	return nil
 }
 
-func (r RedisClient) GetAllQueueMembers(ctx context.Context, queue_id string) ([]models.AbstractPlayer, error) {
+func (r *RedisClient) GetAllQueueMembers(ctx context.Context, queue_id string) ([]models.AbstractPlayer, error) {
 	if r.client == nil {
 		return nil, fmt.Errorf("redis client is nil")
 	}
@@ -201,6 +200,20 @@ func (r RedisClient) GetAllQueueMembers(ctx context.Context, queue_id string) ([
 	return players, nil
 }
 
+func (r *RedisClient) GetAllQueueMembersLength(ctx context.Context, queue_id string) (int64, error) {
+	if r.client == nil {
+		return 0, fmt.Errorf("redis client is nil")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+
+	members, err := r.client.ZRange(ctx, queue_id, 0, -1).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get memebers of queue-%s: %w", queue_id, err)
+	}
+	return int64(len(members)), nil
+}
+
 func (r *RedisClient) GetPlayersByRatingRange(ctx context.Context, queue_id string, start, end int64, count_threshold int64) ([]models.AbstractPlayer, error) {
 	if r.client == nil {
 		return nil, fmt.Errorf("redis client is nil")
@@ -208,7 +221,6 @@ func (r *RedisClient) GetPlayersByRatingRange(ctx context.Context, queue_id stri
 	mu.Lock()
 	defer mu.Unlock()
 
-	// BUG: this is not working as expected, ranges are wrong
 	members, err := r.client.ZRangeByScoreWithScores(ctx, queue_id, &redis.ZRangeBy{
 		Min:    strconv.FormatInt(start, 10),
 		Max:    strconv.FormatInt(end, 10),
@@ -219,15 +231,12 @@ func (r *RedisClient) GetPlayersByRatingRange(ctx context.Context, queue_id stri
 		return nil, fmt.Errorf("failed to get memebers of queue-%s: %w", queue_id, err)
 	}
 
-	if len(members) != 5 {
-		return nil, nil
-	}
-
 	var players []models.AbstractPlayer
 	for _, member := range members {
 		players = append(players, models.AbstractPlayer{
-			ID:    member.Member.(string),
-			Score: member.Score,
+			ID:      member.Member.(string),
+			Score:   member.Score,
+			QueueID: queue_id,
 		})
 	}
 	return players, nil
